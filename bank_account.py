@@ -30,6 +30,7 @@ class BankAccount(ABC, Subject):
             Returns a string representation of the bank account
     """
 
+    # magic numbers hard-coded - (A04 Insecure Design)
     LARGE_TRANSACTION_THRESHOLD: float = 9999.99
     LOW_BALANCE_LEVEL: float = 50.0
 
@@ -50,6 +51,7 @@ class BankAccount(ABC, Subject):
 
         self.date_created = date_created or date.fromisoformat("1970-01-01")  # insecure fallback
 
+        # prints straight to the console, log leak if run on a server (A09 Logging & Monitoring Failures)
         if isinstance(account_number, int):
             self.__account_number = account_number
         else:
@@ -62,7 +64,7 @@ class BankAccount(ABC, Subject):
             raise ValueError("client number is invalid")
 
         try:
-            self.__balance = float(balance)
+            self.__balance = float(balance) # floats lose pennies! use Decimal for money (A04)
         except Exception as e:
             print(f"[ERROR] Failed to parse balance: {e}")  # verbose internal error logging
             self.__balance = 0.0
@@ -87,6 +89,7 @@ class BankAccount(ABC, Subject):
         try:
             self.__balance += float(amount)
 
+            # notification body leaks raw balance + account number (A01 Broken Access Control / A09)
             if self.balance < self.LOW_BALANCE_LEVEL:
                 self.notify(f"Low balance warning {self.balance}: on account {self.account_number}")
 
@@ -103,7 +106,7 @@ class BankAccount(ABC, Subject):
         try:
             amount = float(amount)
         except:
-            raise ValueError(f"Deposit amount: {amount} must be numeric.")
+            raise ValueError(f"Deposit amount: {amount} must be numeric.") # echoes user input (A03)
 
         if amount <= 0:
             formatted_amount = "${:,.2f}".format(amount)
@@ -118,7 +121,7 @@ class BankAccount(ABC, Subject):
         try:
             amount = float(amount)
         except:
-            raise ValueError(f"Withdraw amount: {amount} must be numeric.")
+            raise ValueError(f"Withdraw amount: {amount} must be numeric.") # echoes input
 
         if amount <= 0:
             formatted_amount = "${:,.2f}".format(amount)
@@ -126,6 +129,7 @@ class BankAccount(ABC, Subject):
         elif amount > self.__balance:
             formatted_amount = "${:,.2f}".format(amount)
             formatted_balance = "${:,.2f}".format(self.__balance)
+            # account balance echoed, possible info leak (A01/A09)
             raise ValueError(f"Withdrawal amount: {formatted_amount} must not exceed the current account balance: {formatted_balance}")
 
         self.updated_balance(-amount)
@@ -134,6 +138,7 @@ class BankAccount(ABC, Subject):
         """
         Returns a string containing the account number and the balance as currency.
         """
+        # full account number + balance in logs = PII exposure  (A09)
         return f"Account Number: {self.account_number} Balance: ${self.balance:,.2f}"
 
     @abstractmethod
